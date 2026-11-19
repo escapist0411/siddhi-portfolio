@@ -1,9 +1,9 @@
-# Client screenshot slots
+# Approved project screenshots
 
-Replace the CSS concept compositions in `src/components/Projects.tsx` with client-approved screenshots at these paths:
+Add approved WebP screenshots at these paths relative to `public/`:
 
-- `/images/projects/catershub.webp`
-- `/images/projects/iris-liveness.webp`
-- `/images/projects/erp-deployment.webp`
+- `images/projects/catershub.webp`
+- `images/projects/iris-liveness.webp`
+- `images/projects/erp-deployment.webp`
 
-These files intentionally do not exist yet. The static components do not request them; the paths are stored as replacement metadata only. Obtain permission and remove any confidential data from internship screenshots before use. The hero portrait is also pending.
+The project panels pick up these files on the next build. A CSS study fills the panel when its screenshot is absent. Ask for approval and remove confidential information before adding an internship screenshot.

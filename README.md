@@ -1,6 +1,6 @@
 # Siddhi Bhogade — Portfolio
 
-Phase 2 adds a cinematic opening and a Canvas particle portrait to Siddhi Bhogade’s AI & DevOps portfolio.
+Siddhi Bhogade’s AI & DevOps portfolio pairs a cinematic particle portrait with scroll reveals and editorial presentations of selected work.
 
 ## Stack
 
@@ -32,6 +32,7 @@ The lockfile pins the installed dependency versions. Next.js requires a supporte
 - `src/components/`: Navbar, Hero, About, Services, Projects, and Contact.
 - `src/components/Preloader.tsx` and `src/lib/animations.ts` control the opening, scroll lock, Lenis, and hero parallax.
 - `src/components/ParticleFace.tsx` and `src/lib/particles.ts` manage the Canvas lifecycle, portrait sampling, and rendering.
+- `src/components/SectionMotion.tsx` manages section entrances, desktop project parallax, marquee visibility, and the navbar’s current section and progress.
 - `src/components/ui/SectionLabel.tsx`: shared technical section label.
 - `src/data/portfolio.ts`: editable client copy, experience, technologies, projects and contact configuration.
 - `public/images/projects/README.md`: intended screenshot filenames and replacement instructions.
@@ -48,12 +49,12 @@ The opening runs once per page load and offers a skip button. Direct links to ot
 
 GSAP’s ticker drives Lenis and draws the portrait while the hero is visible. ScrollTrigger makes the portrait scatter and title parallax reversible. The `portfolio:reform-particles` event can request a reform. Mask, contrast and density settings live in `src/lib/particles.ts`.
 
-Full page motion and project presentation are Phase 3. Contact and production polish are Phase 4. Project media are original CSS concepts pending approved screenshots.
+About, Services, and Projects use a shared reveal pattern. The Stack uses alternating CSS marquees with a pause control and a static layout for reduced motion. Approved screenshots can be added in place of the CSS project studies. Contact and production polish are Phase 4.
 
 ## Required client data before deployment
 
 - Supply approved GitHub and LinkedIn URLs and replace disabled social buttons with links. No URLs are invented.
-- Supply approved project screenshots at the paths documented in `public/images/projects/README.md`; swap the CSS media for actual images with appropriate alt text. Those paths are metadata only and cause no missing image requests today.
+- Add approved project screenshots at the paths documented in `public/images/projects/README.md`.
 - Research accuracy values are supplied results: 97.06% validation, reported 100% test accuracy; no benchmark or production claims are made.
 
 This phase is intended for local review and has not been deployed.
