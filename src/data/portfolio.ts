@@ -18,4 +18,4 @@ export const portfolio = {
   ],
   contactCopy: 'Have an opportunity in software, AI or DevOps? I’m looking to contribute, keep learning and build thoughtful systems with a team.',
 } as const;
-export const navigation = ['home', 'about', 'services', 'projects', 'play', 'contact'] as const;
+export const navigation = ['home', 'about', 'services', 'projects', 'contact'] as const;

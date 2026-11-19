@@ -1,10 +1,26 @@
-import Navbar from '@/components/Navbar';
-import Hero from '@/components/Hero';
 import About from '@/components/About';
-import Services from '@/components/Services';
-import Projects from '@/components/Projects';
-import Play from '@/components/Play';
 import Contact from '@/components/Contact';
+import Hero from '@/components/Hero';
+import Navbar from '@/components/Navbar';
+import Preloader from '@/components/Preloader';
+import Projects from '@/components/Projects';
+import Services from '@/components/Services';
+
 export default function Home() {
-  return <><a className="skip-link" href="#main">Skip to content</a><Navbar /><main id="main"><Hero /><About /><Services /><Projects /><Play /><Contact /></main></>;
+  return (
+    <>
+      <Preloader />
+      <div data-intro-content>
+        <a className="skip-link" href="#main">Skip to content</a>
+        <Navbar />
+        <main id="main" tabIndex={-1}>
+          <Hero />
+          <About />
+          <Services />
+          <Projects />
+          <Contact />
+        </main>
+      </div>
+    </>
+  );
 }

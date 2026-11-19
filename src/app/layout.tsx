@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Syne, Inter, Instrument_Serif } from 'next/font/google';
+import 'lenis/dist/lenis.css';
 import './globals.css';
 const display = Syne({ subsets: ['latin'], variable: '--font-display', display: 'swap' });
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
