@@ -67,6 +67,34 @@ function trackNavigation() {
   };
 }
 
+function bindMagneticLinks(main: HTMLElement) {
+  const remove = Array.from(main.querySelectorAll<HTMLElement>('[data-magnetic]'), link => {
+    const x = gsap.quickTo(link, 'x', { duration: 0.35, ease: 'power3.out' });
+    const y = gsap.quickTo(link, 'y', { duration: 0.35, ease: 'power3.out' });
+    const reset = () => { x(0); y(0); };
+
+    function move(event: PointerEvent) {
+      if (event.pointerType !== 'mouse' || link.matches(':focus-visible')) return;
+      const bounds = link.getBoundingClientRect();
+      const dx = (event.clientX - bounds.left - bounds.width / 2) * 0.16;
+      const dy = (event.clientY - bounds.top - bounds.height / 2) * 0.3;
+      const limit = Math.max(1, Math.hypot(dx, dy) / 8);
+      x(dx / limit);
+      y(dy / limit);
+    }
+
+    link.addEventListener('pointermove', move);
+    link.addEventListener('pointerleave', reset);
+    link.addEventListener('focus', reset);
+    return () => {
+      link.removeEventListener('pointermove', move);
+      link.removeEventListener('pointerleave', reset);
+      link.removeEventListener('focus', reset);
+    };
+  });
+  return () => remove.forEach(cleanup => cleanup());
+}
+
 function revealSections(main: HTMLElement, compact: boolean) {
   const about = main.querySelector<HTMLElement>('#about');
   const services = main.querySelector<HTMLElement>('#services');
@@ -131,6 +159,16 @@ function revealSections(main: HTMLElement, compact: boolean) {
     }
   });
 
+  const contact = main.querySelector('#contact');
+  if (contact) {
+    reveal(contact, 'top 88%')
+      .from(contact.querySelector('.availability'), { opacity: 0, y: 12, duration: 0.5 }, 0)
+      .fromTo(contact.querySelector('h2'), { clipPath: 'inset(0 -4% 100% -4%)' }, { clipPath: endMask, duration: 0.73 }, 0.1)
+      .from(contact.querySelector('.contact-copy'), { opacity: 0, y: 16, duration: 0.55 }, 0.23)
+      .from(contact.querySelectorAll('.contact-actions > *'), { opacity: 0, duration: 0.5, stagger: 0.08 }, 0.35)
+      .from(contact.querySelector('.contact-card'), { opacity: 0, y: compact ? 18 : 30, duration: 0.65 }, 0.21);
+  }
+
   const observer = typeof IntersectionObserver === 'undefined' ? undefined
     : new IntersectionObserver(([entry]) => stack.toggleAttribute('data-in-view', entry.isIntersecting));
   stack.toggleAttribute('data-in-view', !observer);
@@ -173,6 +211,8 @@ export default function SectionMotion() {
       if (context.conditions?.reduced) return;
       return revealSections(main, !!context.conditions?.compact);
     }, main);
+    media.add('(hover: hover) and (pointer: fine) and (min-width: 681px) and (prefers-reduced-motion: no-preference)',
+      () => bindMagneticLinks(main), main);
     const stopNavigation = trackNavigation();
     const cancelFragment = alignInitialFragment(main);
 

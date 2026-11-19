@@ -102,9 +102,9 @@ p, h1, h2, h3 { margin: 0; }
 .contact-title .editorial { font-size: 1.05em; }.contact-copy { max-width: 470px; margin: 30px 0; }
 .contact-actions { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 .primary-button, .copy-button { display: inline-flex; align-items: center; justify-content: center; gap: 18px; text-transform: uppercase; font: .75rem ui-monospace, monospace; padding: 17px 20px; border: 0; }
-.primary-button { background: var(--orange); color: #080808; }.primary-button:disabled { background: #9a533e; color: #080808; }.copy-button { background: transparent; color: #ccc; padding-left: 0; padding-right: 0; }.copy-button:disabled { color: #888; }
+.primary-button { background: var(--orange); color: #080808; }.copy-button { background: transparent; color: #ccc; padding-left: 0; padding-right: 0; }
 .contact-status { margin-top: 16px; font-size: .625rem; }
-.contact-card { padding: 15px 32px; }.contact-card > div { padding: 25px 0; border-bottom: 1px solid #292929; }.contact-card > div:last-child { border-bottom: 0; }.contact-card .eyebrow { color: #8e8e8e; font-size: .625rem; display: block; margin-bottom: 10px; }.contact-card p { font-size: .875rem; }.pending-email { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+.contact-card { padding: 15px 32px; }.contact-card > div { padding: 25px 0; border-bottom: 1px solid #292929; }.contact-card > div:last-child { border-bottom: 0; }.contact-card .eyebrow { color: #8e8e8e; font-size: .625rem; display: block; margin-bottom: 10px; }.contact-card p { font-size: .875rem; }.contact-email { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
 .socials { display: flex; gap: 24px; }.socials button { display: flex; align-items: center; gap: 6px; background: transparent; color: #929292; border: 0; padding: 0; font-size: .875rem; }.social-note { display: block; font-size: .75rem; margin-top: 10px; color: #888; }
 .footer { border-top: 1px solid #292929; padding: 28px 0; display: flex; justify-content: space-between; gap: 20px; color: #8b8b8b; font-size: .625rem; }.footer a { display: flex; align-items: center; gap: 12px; color: #ddd; }
 @media (min-width: 1800px) { .hero { max-width: 1800px; margin: auto; }.hero-title { font-size: 10.25rem; } }
@@ -358,4 +358,12 @@ html[data-intro="running"] .intro-skip { visibility: visible; pointer-events: au
 
 @media (prefers-reduced-motion: reduce) {
   .service-row:hover svg, .project-media:hover .media-visual { transform: none; }
+}
+
+.contact-actions .copy-button { min-width: 8rem; }
+.contact-status { min-height: 1.6em; }
+.contact-actions a, .contact-actions button, .footer a { scroll-margin-bottom: 1rem; }
+@media (hover: hover) and (pointer: fine) {
+  .primary-button:hover { background: #ff8059; }
+  .copy-button:hover, .footer a:hover { color: var(--orange); }
 }

@@ -62,7 +62,7 @@ export default function Projects() {
                 <ul className="project-tags">{project.tags.map(tag => <li key={tag}>{tag}</li>)}</ul>
                 {project.url && (
                   <a className="text-link" href={project.url} target="_blank" rel="noopener noreferrer">
-                    View live project <ArrowUpRight size={18} aria-hidden="true" />
+                    View live project<span className="sr-only"> for {project.name}</span> <ArrowUpRight size={18} aria-hidden="true" />
                     <span className="sr-only"> (opens in new tab)</span>
                   </a>
                 )}
