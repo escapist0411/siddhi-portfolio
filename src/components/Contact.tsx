@@ -1,0 +1,10 @@
+'use client';
+import { useState } from 'react';
+import { ArrowUp, ArrowUpRight, Copy } from 'lucide-react';
+import { portfolio } from '@/data/portfolio';
+export default function Contact() {
+  const [message, setMessage] = useState('');
+  const { email } = portfolio;
+  async function copyEmail() { try { await navigator.clipboard.writeText(email); setMessage('Email copied.'); } catch { setMessage('Unable to copy. Please select the email address in the information card.'); } }
+  return <section id="contact" className="section contact" aria-labelledby="contact-title"><span className="pill availability eyebrow"><span className="status-dot" />Available for software, AI & DevOps opportunities</span><div className="contact-grid"><div><h2 id="contact-title" className="contact-title">LET’S BUILD<br /><span className="editorial">INTELLIGENT</span><br />SYSTEMS.</h2><p className="body-copy contact-copy">{portfolio.contactCopy}</p><div className="contact-actions"><a className="primary-button" href={`mailto:${email}`}>Send an email <ArrowUpRight size={18} /></a><button className="copy-button" onClick={copyEmail}>Copy email <Copy size={16} /></button></div><p className="contact-status eyebrow muted" role="status">{message}</p></div><aside className="glass contact-card" aria-label="Contact information"><div><span className="eyebrow">Email</span><p className="pending-email">{email}</p></div><div><span className="eyebrow">Based in</span><p>{portfolio.location}</p></div><div><span className="eyebrow">Focus</span><p>AI / DevOps / Software</p></div><div><span className="eyebrow">Elsewhere</span><div className="socials">{portfolio.socials.map(social => <button key={social.name} disabled title="Client profile URL pending">{social.name} <ArrowUpRight size={15} /></button>)}</div><span className="social-note">Profile links pending</span></div></aside></div><footer className="footer eyebrow"><p>© 2026 {portfolio.name}. All rights reserved.</p><a href="#home">Back to top <ArrowUp size={17} aria-hidden="true" /></a></footer></section>;
+}
