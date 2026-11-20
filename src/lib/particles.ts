@@ -25,6 +25,14 @@ type ParticlePoints = {
 
 type PortraitSamples = ParticlePoints & { aspect: number; mobile: ParticlePoints };
 
+// Viewer-left/right landmarks in Siddhi's existing normalized portrait crop.
+const mobileLandmarks = {
+  eyes: [[0.404, 0.274, 0.042, 0.022], [0.552, 0.275, 0.042, 0.022]],
+  brows: [[0.396, 0.246, 0.051, 0.016], [0.543, 0.246, 0.051, 0.016]],
+  nose: [0.473, 0.320, 0.050, 0.039],
+  mouth: [0.469, 0.389, 0.073, 0.022],
+} as const;
+
 function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
@@ -104,9 +112,30 @@ export async function samplePortrait(src: string, signal: AbortSignal): Promise<
         face * faceLight * 0.29 - faceShadow * 0.16) * fade);
       const rank = -Math.log(1 - random()) / weight;
       const facialMidtone = smoothstep(45, 105, light) * (1 - smoothstep(165, 190, light));
-      // Reweight accepted pixels only, keeping the same light-wall and corner rejection.
-      const mobileWeight = (0.68 + head * 0.52 + face * (1.3 + facialMidtone * 0.65 + contrast * 0.6)) *
+      // Keep the existing background mask, then allocate more of the phone budget
+      // to the facial features. Signed contrast keeps the shadow side of an edge dark.
+      const eyes = Math.max(oval(u, v, ...mobileLandmarks.eyes[0]), oval(u, v, ...mobileLandmarks.eyes[1]));
+      const brows = Math.max(oval(u, v, ...mobileLandmarks.brows[0]), oval(u, v, ...mobileLandmarks.brows[1]));
+      const nose = oval(u, v, ...mobileLandmarks.nose);
+      const mouth = oval(u, v, ...mobileLandmarks.mouth);
+      const feature = Math.max(eyes, brows * 0.85, nose * 0.82, mouth * 0.87);
+      const vertical = d * width;
+      const surrounding = feature > 0
+        ? (lum[i - d] + lum[i + d] + lum[i - vertical] + lum[i + vertical] +
+          lum[i - vertical - d] + lum[i - vertical + d] + lum[i + vertical - d] + lum[i + vertical + d]) / 8
+        : light;
+      const difference = light - surrounding;
+      const detail = Math.max(contrast, smoothstep(4, 36, Math.abs(difference)));
+      const featureWeight = (eyes * 4.4 + brows * 2.7 + nose * 2.2 + mouth * 2.7) * (0.45 + detail * 0.95);
+      const mobileWeight = (0.68 + head * 0.52 + face * (1.3 + facialMidtone * 0.65 + contrast * 0.6) + featureWeight) *
         (1 - smoothstep(0.59, 0.93, v) * 0.65);
+      const mobileBase = shade + face * facialMidtone * Math.min(0.065, (1 - shade) * 0.2);
+      const boundaryFloor = feature * smoothstep(0.36, 0.85, detail) * smoothstep(35, 90, surrounding) * 0.18;
+      const featureShade = clamp(
+        mobileBase + clamp(difference / 410, -0.11, 0.06) * feature +
+        mobileBase * 0.10 * feature * detail * smoothstep(-12, 18, difference),
+        Math.max(boundaryFloor, Math.min(mobileBase, 0.07 + detail * 0.035)),
+      );
       candidates.push({
         x: sampleX,
         y: sampleY,
@@ -114,7 +143,7 @@ export async function samplePortrait(src: string, signal: AbortSignal): Promise<
         emphasis: Math.max(face, head * 0.58 + contrast * 0.17),
         rank,
         mobileRank: rank / mobileWeight,
-        mobileShade: shade + face * facialMidtone * Math.min(0.065, (1 - shade) * 0.2),
+        mobileShade: featureShade,
       });
     }
   }
