@@ -1,8 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useRef } from 'react';
 import {
-  gsap, MOBILE, PORTRAIT_FORMATION, PORTRAIT_REFORM, PORTRAIT_SETTLE, REDUCED_MOTION, ScrollTrigger,
+  gsap, MOBILE, PORTRAIT_FORMATION, PORTRAIT_SETTLE, REDUCED_MOTION,
 } from '@/lib/animations';
 import { createPortraitRenderer, samplePortrait } from '@/lib/particles';
 
@@ -27,20 +28,19 @@ export default function ParticleFace({ src }: { src: string }) {
     const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
     let renderer: ReturnType<typeof createPortraitRenderer> | undefined;
     let readSize: (() => void) | undefined;
-    let scroller: gsap.core.Tween | undefined;
     let resizeFrame: number | undefined;
-    let visible = true;
     let ticking = false;
     let elapsed = 0;
     const loading = new AbortController();
-    let phase = document.documentElement.dataset.intro === 'complete' ? 'settled' : 'waiting';
+    let phase = 'waiting';
+    if (reduced.matches || document.documentElement.dataset.intro === 'complete') return;
     let startedAt = 0;
 
     const clearPointer = () => renderer?.setPointer(-1000, -1000);
     const point = (event: PointerEvent) => {
-      if (!reduced.matches && !phone.matches && finePointer.matches && event.pointerType === 'mouse') {
+      if (renderer && !reduced.matches && !phone.matches && finePointer.matches && event.pointerType === 'mouse') {
         const box = surface.getBoundingClientRect();
-        renderer?.setPointer(event.clientX - box.left, event.clientY - box.top);
+        renderer.setPointer(event.clientX - box.left, event.clientY - box.top);
       }
     };
 
@@ -50,29 +50,19 @@ export default function ParticleFace({ src }: { src: string }) {
       elapsed = 0;
     }
 
-    function fallback() {
-      stopDrawing();
-      scroller?.scrollTrigger?.kill();
-      scroller?.kill();
-      scroller = undefined;
-      renderer = undefined;
-      delete surface.dataset.particles;
-      container.dataset.portrait = 'fallback';
-    }
-
     function tick(_: number, delta: number) {
       elapsed += delta;
       if (phone.matches && elapsed < 25) return;
       try {
         renderer?.draw(elapsed / 1000, false);
       } catch {
-        fallback();
+        finish();
       }
       elapsed = 0;
     }
 
     function syncDrawing() {
-      const shouldDraw = !!renderer && phase !== 'waiting' && visible && !document.hidden && !reduced.matches;
+      const shouldDraw = !!renderer && phase === 'forming' && !document.hidden && !reduced.matches;
       if (shouldDraw && !ticking) {
         ticking = true;
         gsap.ticker.add(tick);
@@ -81,44 +71,23 @@ export default function ParticleFace({ src }: { src: string }) {
       }
     }
 
-    function syncMotion() {
-      if (!renderer) return;
-      try {
-        if (reduced.matches) {
-          scroller?.scrollTrigger?.kill();
-          scroller?.kill();
-          scroller = undefined;
-          renderer.setScatter(0);
-          renderer.settle();
-          renderer.draw(0, true);
-          clearPointer();
-        } else if (!scroller) {
-          const scrub = { progress: 0 };
-          gsap.registerPlugin(ScrollTrigger);
-          scroller = gsap.to(scrub, {
-            progress: 1,
-            ease: 'none',
-            onUpdate: () => renderer?.setScatter(scrub.progress),
-            scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: true },
-          });
-        }
-        syncDrawing();
-      } catch {
-        fallback();
-      }
-    }
-
     function form() {
+      if (phase === 'complete') return;
       phase = 'forming';
       startedAt = performance.now();
       if (!reduced.matches) renderer?.form();
       syncDrawing();
     }
 
-    function settle() {
-      phase = 'settled';
-      renderer?.settle();
-      syncDrawing();
+    function finish() {
+      phase = 'complete';
+      loading.abort();
+      stopDrawing();
+      renderer = undefined;
+      readSize = undefined;
+      surface.width = 0;
+      surface.height = 0;
+      delete surface.dataset.particles;
     }
 
     function resize() {
@@ -127,36 +96,27 @@ export default function ParticleFace({ src }: { src: string }) {
         try {
           readSize?.();
         } catch {
-          fallback();
+          finish();
         }
       });
     }
 
-    const intersection = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      if (!visible) clearPointer();
-      syncDrawing();
-    }) : undefined;
     const layout = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : undefined;
 
-    intersection?.observe(hero);
     layout?.observe(container);
     layout?.observe(bounds);
     window.addEventListener('resize', resize);
     window.addEventListener(PORTRAIT_FORMATION, form);
-    window.addEventListener(PORTRAIT_SETTLE, settle);
-    const reform = () => renderer?.reform();
-    window.addEventListener(PORTRAIT_REFORM, reform);
+    window.addEventListener(PORTRAIT_SETTLE, finish);
     document.addEventListener('visibilitychange', syncDrawing);
     hero.addEventListener('pointermove', point, { passive: true });
     hero.addEventListener('pointerleave', clearPointer);
-    reduced.addEventListener('change', syncMotion);
 
     async function load() {
       try {
         const context = surface.getContext('2d', { alpha: true });
         if (!context) {
-          fallback();
+          finish();
           return;
         }
         const samples = await samplePortrait(src, loading.signal);
@@ -178,19 +138,17 @@ export default function ParticleFace({ src }: { src: string }) {
             },
             screen,
           });
-          if (reduced.matches) renderer.draw(0, true);
         };
         readSize();
 
-        const introComplete = document.documentElement.dataset.intro === 'complete';
-        if (reduced.matches || introComplete || phase === 'settled') settle();
-        else if (phase === 'forming' && performance.now() - startedAt < 500) loaded.form();
-        else if (phase === 'forming') settle();
+        if (phase === 'forming') {
+          if (performance.now() - startedAt < 500) loaded.form();
+          else loaded.settle();
+        }
 
-        container.dataset.portrait = 'ready';
-        syncMotion();
+        syncDrawing();
       } catch {
-        if (!loading.signal.aborted) fallback();
+        if (!loading.signal.aborted) finish();
       }
     }
     void load();
@@ -198,26 +156,32 @@ export default function ParticleFace({ src }: { src: string }) {
     return () => {
       loading.abort();
       stopDrawing();
-      scroller?.scrollTrigger?.kill();
-      scroller?.kill();
       window.cancelAnimationFrame(resizeFrame ?? 0);
       layout?.disconnect();
-      intersection?.disconnect();
       window.removeEventListener('resize', resize);
       window.removeEventListener(PORTRAIT_FORMATION, form);
-      window.removeEventListener(PORTRAIT_SETTLE, settle);
-      window.removeEventListener(PORTRAIT_REFORM, reform);
+      window.removeEventListener(PORTRAIT_SETTLE, finish);
       document.removeEventListener('visibilitychange', syncDrawing);
       hero.removeEventListener('pointermove', point);
       hero.removeEventListener('pointerleave', clearPointer);
-      reduced.removeEventListener('change', syncMotion);
     };
   }, [src]);
 
   return (
-    <div className="portrait-layer" ref={layer} data-portrait="pending" aria-hidden="true">
-      <div className="portrait-frame" ref={frame} />
-      <canvas className="portrait-canvas" ref={canvas} />
+    <div className="portrait-layer" ref={layer}>
+      <canvas className="portrait-canvas" ref={canvas} aria-hidden="true" />
+      <div className="portrait-frame" ref={frame}>
+        <div className="portrait-photo-motion">
+          <Image
+            className="portrait-photo"
+            src={src}
+            alt="Portrait of Siddhi Bhogade"
+            fill
+            unoptimized
+            preload
+          />
+        </div>
+      </div>
     </div>
   );
 }

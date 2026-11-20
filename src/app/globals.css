@@ -207,33 +207,53 @@ html[data-intro="running"] .intro-skip { visibility: visible; pointer-events: au
 .portrait-frame {
   position: absolute;
   inset: clamp(84px, 10.5svh, 142px) 7% 14% 51%;
+  container-type: size;
 }
-.portrait-frame::before {
-  content: '';
+.portrait-photo-motion {
+  --photo-width: min(100cqw, 65.78125cqh);
   position: absolute;
-  inset: 5% 14% 16%;
-  border-inline: 1px solid #66748029;
-  background: linear-gradient(90deg, transparent, #11151a4d, transparent);
-  opacity: 1;
-  transition: opacity .45s;
+  width: var(--photo-width);
+  aspect-ratio: 842 / 1280;
+  left: 50%;
+  top: calc((100cqh - var(--photo-width) * 1280 / 842) * .26);
+  translate: -50% 0;
+  -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 72%, transparent);
+  mask-image: linear-gradient(transparent, #000 12%, #000 72%, transparent);
 }
-.portrait-layer[data-portrait="ready"] .portrait-frame::before { opacity: 0; }
-.portrait-layer[data-portrait="fallback"] .portrait-canvas { visibility: hidden; }
+.portrait-photo {
+  object-fit: cover;
+  object-position: center top;
+  -webkit-mask-image: radial-gradient(ellipse 52% 56% at 49% 39%, #000 38%, #000b 57%, transparent 95%);
+  mask-image: radial-gradient(ellipse 52% 56% at 49% 39%, #000 38%, #000b 57%, transparent 95%);
+}
+html[data-intro="running"] .portrait-photo { opacity: 0; }
 .hero-title:focus, .section-title:focus, .display-title:focus, .contact-title:focus, main:focus { outline: none; }
 
 @media (max-width: 1024px) {
   .portrait-frame { right: 4%; left: 45%; }
+}
+@media (min-width: 900px) {
+  .portrait-photo-motion {
+    width: calc(var(--photo-width) * .9);
+    margin-top: -4.2svh;
+  }
 }
 @media (max-width: 680px) {
   .hero { justify-content: flex-end; padding-bottom: clamp(108px, 16svh, 150px); }
   .hero-title-motion { margin-top: 0; }
   .hero-identity { margin-top: clamp(18px, 3.5svh, 30px); }
   .portrait-frame { inset: clamp(125px, 16svh, 146px) 5% clamp(146px, 30svh, 260px) 5%; }
+  .portrait-photo-motion {
+    --photo-width: calc(min(100cqw, 65.78125cqh) * 1.16);
+    top: max(0px, calc((100cqh - var(--photo-width) * 1280 / 842) * .26));
+  }
   .intro-name { font-size: 15vw; }
   .intro-skip { right: 5%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .intro-screen { display: none; }
+  html[data-intro="running"] .portrait-photo { opacity: 1; }
+  .portrait-canvas { display: none; }
 }
 
 /* Phase 3 section treatments */

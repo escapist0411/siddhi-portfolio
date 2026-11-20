@@ -29,6 +29,9 @@ export default function Preloader() {
     const title = document.getElementById('hero-title');
     const hero = document.getElementById('home');
     const portrait = document.querySelector<HTMLElement>('.portrait-layer');
+    const canvas = portrait?.querySelector('.portrait-canvas');
+    const photo = portrait?.querySelector('.portrait-photo');
+    const photoMotion = portrait?.querySelector('.portrait-photo-motion');
     const navbar = document.querySelector<HTMLElement>('.navbar');
     const identity = document.querySelector<HTMLElement>('.hero-identity');
     const point = overlay.querySelector('.intro-point');
@@ -57,13 +60,13 @@ export default function Preloader() {
       }
     }
 
-    function finishIntro(settle = false) {
+    function finishIntro() {
       const returnFocus = document.activeElement === skipButton;
       root.dataset.intro = 'complete';
       try {
         releaseIntro();
       } finally {
-        if (settle) window.dispatchEvent(new Event(PORTRAIT_SETTLE));
+        window.dispatchEvent(new Event(PORTRAIT_SETTLE));
         if (returnFocus) title?.focus({ preventScroll: true });
       }
       ScrollTrigger.refresh();
@@ -71,7 +74,7 @@ export default function Preloader() {
 
     function syncMotion() {
       if (reduced.matches) {
-        finishIntro(true);
+        finishIntro();
         parallax?.revert();
         parallax = undefined;
         smoothScroll?.destroy();
@@ -84,6 +87,13 @@ export default function Preloader() {
         smoothScroll ??= setupSmoothScroll();
         if (!parallax && hero) {
           parallax = gsap.context(() => {
+            if (photoMotion) {
+              gsap.to(photoMotion, {
+                y: -18, scale: 1.03, opacity: 0,
+                ease: 'none',
+                scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: true },
+              });
+            }
             gsap.to('.hero-title-motion', {
               y: () => -Math.min(54, hero.clientHeight * 0.06),
               ease: 'none',
@@ -94,15 +104,15 @@ export default function Preloader() {
           }, hero);
         }
       } catch {
-        finishIntro(true);
+        finishIntro();
       }
     }
 
     function startIntro() {
       if (root.dataset.intro === 'complete' || reduced.matches) return;
-      if (!content || !title || !portrait || !navbar || !identity || !point || !backdrop || !name || window.scrollY > 4 ||
+      if (!content || !title || !portrait || !canvas || !photo || !navbar || !identity || !point || !backdrop || !name || window.scrollY > 4 ||
           (location.hash && location.hash !== '#home')) {
-        finishIntro(true);
+        finishIntro();
         return;
       }
 
@@ -110,11 +120,12 @@ export default function Preloader() {
       root.dataset.intro = 'running';
       content.inert = true;
       // Independent of the timeline so a failure can never trap scroll or focus.
-      watchdog = window.setTimeout(() => finishIntro(true), mobile ? 5350 : 7200);
+      watchdog = window.setTimeout(() => finishIntro(), mobile ? 5350 : 7200);
       try {
         smoothScroll?.stop();
         intro = gsap.context(() => {});
         intro.add(() => {
+          const crossfade = { duration: mobile ? 1.04 : 0.8, ease: 'power1.inOut' };
           const timeline = gsap.timeline({ onComplete: () => finishIntro() });
 
           timeline
@@ -144,17 +155,19 @@ export default function Preloader() {
             }, 3.29)
             .fromTo(identity, { y: 16 }, { y: 0, opacity: 1, duration: 0.72, ease: 'power3.out' }, 4.79)
             .to(details, { opacity: 1, duration: 0.58 }, 5.09)
-            .fromTo(navbar, { y: -9 }, { y: 0, opacity: 1, duration: 0.56, ease: 'power2.out' }, 5.55);
+            .fromTo(navbar, { y: -9 }, { y: 0, opacity: 1, duration: 0.56, ease: 'power2.out' }, 5.55)
+            .to(canvas, { opacity: 0, ...crossfade }, 5.55)
+            .fromTo(photo, { opacity: 0 }, { opacity: 1, ...crossfade }, 5.55);
           timeline.timeScale(mobile ? 1.3 : 1);
         });
       } catch {
-        finishIntro(true);
+        finishIntro();
       }
     }
 
-    const skipIntro = () => finishIntro(true);
+    const skipIntro = () => finishIntro();
     const restorePage = (event: PageTransitionEvent) => {
-      if (event.persisted && running) finishIntro(true);
+      if (event.persisted && running) finishIntro();
     };
     syncMotion();
     // A scheduled start lets Strict Mode clean up its rehearsal before it can start the intro.
