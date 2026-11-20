@@ -8,13 +8,25 @@ import SectionLabel from './ui/SectionLabel';
 type Project = (typeof portfolio.projects)[number];
 
 function ProjectMedia({ project, number }: { project: Project; number: string }) {
-  const screenshot = existsSync(join(process.cwd(), 'public', project.media.slice(1)));
+  const isIris = project.visual === 'iris';
+  const screenshot = !isIris && existsSync(join(process.cwd(), 'public', project.media.slice(1)));
 
   return (
     <div className={`project-media ${project.visual}`}>
       <div className="media-viewport">
         <div className="media-visual">
-          {screenshot ? (
+          {isIris ? (
+            <div className="media-art">
+              <Image
+                src={project.media}
+                alt="Digital iris visualization representing iris liveness detection research"
+                fill
+                unoptimized
+                style={{ objectFit: 'cover', objectPosition: 'center', padding: 0 }}
+              />
+              <span className="iris-mark" aria-hidden="true">SPATIAL × TEMPORAL</span>
+            </div>
+          ) : screenshot ? (
             <Image src={project.media} alt={`${project.name} screenshot`} fill sizes="(max-width: 680px) 88vw, (max-width: 1600px) 46vw, 727px" />
           ) : (
             <div className="media-art" aria-hidden="true">
@@ -23,11 +35,6 @@ function ProjectMedia({ project, number }: { project: Project; number: string })
                   <div className="cater-orbit" />
                   <span className="cater-word">Caters<span>Hub</span></span>
                   <span className="media-caption">CUISINE / BUDGET / REQUIREMENTS</span>
-                </>
-              ) : project.visual === 'iris' ? (
-                <>
-                  <div className="iris-ring" />
-                  <span className="iris-mark">SPATIAL × TEMPORAL</span>
                 </>
               ) : (
                 <div className="deployment-diagram"><span>STAGING</span><i /><span>VERIFY</span><i /><span>DEPLOY</span></div>
