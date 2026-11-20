@@ -23,7 +23,7 @@ type ParticlePoints = {
   emphasis: Float32Array;
 };
 
-type PortraitSamples = ParticlePoints & { aspect: number; mobile: ParticlePoints };
+type PortraitSamples = ParticlePoints & { aspect: number; mobile: ParticlePoints; mobileTone: HTMLCanvasElement };
 
 // Viewer-left/right landmarks in Siddhi's existing normalized portrait crop.
 const mobileLandmarks = {
@@ -73,7 +73,8 @@ export async function samplePortrait(src: string, signal: AbortSignal): Promise<
   if (!context) throw new Error('Portrait sampling requires a 2D canvas');
   context.drawImage(image, 0, cropY, image.naturalWidth, cropHeight, 0, 0, width, height);
 
-  const { data } = context.getImageData(0, 0, width, height);
+  const bitmap = context.getImageData(0, 0, width, height);
+  const { data } = bitmap;
   const lum = new Float32Array(width * height);
   for (let i = 0; i < lum.length; i++) {
     const pixel = i * 4;
@@ -160,7 +161,27 @@ export async function samplePortrait(src: string, signal: AbortSignal): Promise<
   const selected = candidates.sort((a, b) => a.rank - b.rank).slice(0, PORTRAIT_SETTINGS.density.desktop);
   if (selected.length < 300) throw new Error('Not enough portrait detail to render');
   const mobile = candidates.sort((a, b) => a.mobileRank - b.mobileRank).slice(0, PORTRAIT_SETTINGS.density.mobile);
-  return { aspect: width / height, ...pack(selected, false), mobile: pack(mobile, true) };
+
+  // Reuse the sampling canvas for a soft monochrome base on phones.
+  for (let y = 0; y < height; y++) {
+    const v = y / height;
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      const u = x / width;
+      const light = lum[i];
+      const face = oval(u, v, ...PORTRAIT_SETTINGS.mask.face);
+      const head = oval(u, v, ...PORTRAIT_SETTINGS.mask.head);
+      const backdrop = 1 - smoothstep(PORTRAIT_SETTINGS.backgroundStart, PORTRAIT_SETTINGS.backgroundEnd, light);
+      const tone = smoothstep(24, 195, light);
+      const pixel = i * 4;
+      data[pixel] = 186;
+      data[pixel + 1] = 202;
+      data[pixel + 2] = 220;
+      data[pixel + 3] = 255 * tone * Math.max(face, head * 0.52 * backdrop);
+    }
+  }
+  context.putImageData(bitmap, 0, 0);
+  return { aspect: width / height, ...pack(selected, false), mobile: pack(mobile, true), mobileTone: source };
 }
 
 type PortraitFrame = { left: number; top: number; width: number; height: number };
@@ -196,6 +217,7 @@ export function createPortraitRenderer(
   const radius = arrays();
   let points: ParticlePoints = source;
   let width = 0, height = 0, count = 0;
+  let portraitLeft = 0, portraitTop = 0, portraitWidth = 0, portraitHeight = 0;
   let screen: ScreenSize = 'desktop';
   let dpr = 1;
   let clock = 0, formationTime = 0, scatter = 0, displayedScatter = 0;
@@ -243,6 +265,10 @@ export function createPortraitRenderer(
     const fitHeight = fitWidth / source.aspect;
     const left = frame.left + (frame.width - fitWidth) / 2;
     const top = frame.top + (mobile ? Math.max(0, frame.height - fitHeight) : frame.height - fitHeight) * 0.26;
+    portraitLeft = left;
+    portraitTop = top;
+    portraitWidth = fitWidth;
+    portraitHeight = fitHeight;
 
     for (let i = 0; i < count; i++) {
       homeX[i] = left + points.x[i] * fitWidth;
@@ -270,6 +296,15 @@ export function createPortraitRenderer(
     const distance = smoothstep(0.025, 1, scrollProgress);
     const leave = 1 - smoothstep(0.19, 0.91, scrollProgress);
     const residue = 1 - smoothstep(0.68, 1, scrollProgress);
+    if (mobile) {
+      const appearance = forming ? smoothstep(0.65, 1.7, formationTime) : 1;
+      const toneOpacity = 0.26 * appearance * (1 - smoothstep(0.05, 0.55, scrollProgress));
+      if (toneOpacity > 0) {
+        context.globalAlpha = toneOpacity;
+        context.drawImage(source.mobileTone, portraitLeft, portraitTop, portraitWidth, portraitHeight);
+        context.globalAlpha = 1;
+      }
+    }
     const shimmer = (clock % 5.25 - 3.55) * 1.45 - 0.25;
     const motion = reduced ? 0 : 1;
     const stiffness = forming ? 0.046 : 0.052;

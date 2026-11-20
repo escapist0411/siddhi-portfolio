@@ -228,7 +228,7 @@ html[data-intro="running"] .intro-skip { visibility: visible; pointer-events: au
   .hero { justify-content: flex-end; padding-bottom: clamp(108px, 16svh, 150px); }
   .hero-title-motion { margin-top: 0; }
   .hero-identity { margin-top: clamp(18px, 3.5svh, 30px); }
-  .portrait-frame { inset: clamp(120px, 17svh, 155px) 8% clamp(146px, 30svh, 260px) 8%; }
+  .portrait-frame { inset: clamp(125px, 16svh, 146px) 5% clamp(146px, 30svh, 260px) 5%; }
   .intro-name { font-size: 15vw; }
   .intro-skip { right: 5%; }
 }
