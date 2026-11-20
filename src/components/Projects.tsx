@@ -9,7 +9,8 @@ type Project = (typeof portfolio.projects)[number];
 
 function ProjectMedia({ project, number }: { project: Project; number: string }) {
   const isIris = project.visual === 'iris';
-  const screenshot = !isIris && existsSync(join(process.cwd(), 'public', project.media.slice(1)));
+  const isErp = project.visual === 'erp';
+  const screenshot = !isIris && !isErp && existsSync(join(process.cwd(), 'public', project.media.slice(1)));
 
   return (
     <div className={`project-media ${project.visual}`}>
@@ -26,25 +27,26 @@ function ProjectMedia({ project, number }: { project: Project; number: string })
               />
               <span className="iris-mark" aria-hidden="true">SPATIAL × TEMPORAL</span>
             </div>
+          ) : isErp ? (
+            <Image
+              src={project.media}
+              alt="ERP deployment workflow showing GitHub, Hostinger, PHP/MySQL, staging, verification and deployment"
+              fill
+              sizes="(max-width: 680px) 88vw, (max-width: 1600px) 46vw, 727px"
+            />
           ) : screenshot ? (
             <Image src={project.media} alt={`${project.name} screenshot`} fill sizes="(max-width: 680px) 88vw, (max-width: 1600px) 46vw, 727px" />
           ) : (
             <div className="media-art" aria-hidden="true">
-              {project.visual === 'catershub' ? (
-                <>
-                  <div className="cater-orbit" />
-                  <span className="cater-word">Caters<span>Hub</span></span>
-                  <span className="media-caption">CUISINE / BUDGET / REQUIREMENTS</span>
-                </>
-              ) : (
-                <div className="deployment-diagram"><span>STAGING</span><i /><span>VERIFY</span><i /><span>DEPLOY</span></div>
-              )}
+              <div className="cater-orbit" />
+              <span className="cater-word">Caters<span>Hub</span></span>
+              <span className="media-caption">CUISINE / BUDGET / REQUIREMENTS</span>
             </div>
           )}
         </div>
       </div>
-      <span className="media-top eyebrow" aria-hidden="true">{number} / {project.category}</span>
-      {!screenshot && <span className="media-bottom eyebrow" aria-hidden="true">Engineering study</span>}
+      {!isErp && <span className="media-top eyebrow" aria-hidden="true">{number} / {project.category}</span>}
+      {!isErp && !screenshot && <span className="media-bottom eyebrow" aria-hidden="true">Engineering study</span>}
     </div>
   );
 }

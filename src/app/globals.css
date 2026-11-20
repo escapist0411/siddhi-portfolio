@@ -367,3 +367,13 @@ html[data-intro="running"] .intro-skip { visibility: visible; pointer-events: au
   .primary-button:hover { background: #ff8059; }
   .copy-button:hover, .footer a:hover { color: var(--orange); }
 }
+
+.project-media.erp .media-visual img {
+  background: #080808;
+  object-fit: contain;
+  padding: 48px 0;
+}
+
+@media (max-width: 680px) {
+  .project-media.erp .media-visual img { padding: 6px 0; }
+}
