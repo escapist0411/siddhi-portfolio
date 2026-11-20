@@ -13,16 +13,17 @@ export const PORTRAIT_SETTINGS = {
     torso: [0.5, 0.86, 0.56, 0.43],
     face: [0.485, 0.325, 0.205, 0.23],
   },
-  density: { desktop: 6500, tablet: 4200, mobile: 2500 },
+  density: { desktop: 6500, tablet: 4200, mobile: 3600 },
 } as const;
 
-type PortraitSamples = {
-  aspect: number;
+type ParticlePoints = {
   x: Float32Array;
   y: Float32Array;
   shade: Float32Array;
   emphasis: Float32Array;
 };
+
+type PortraitSamples = ParticlePoints & { aspect: number; mobile: ParticlePoints };
 
 function clamp(value: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
@@ -72,7 +73,7 @@ export async function samplePortrait(src: string, signal: AbortSignal): Promise<
   }
 
   const random = seededRandom(2026);
-  const candidates: { x: number; y: number; shade: number; emphasis: number; rank: number }[] = [];
+  const candidates: { x: number; y: number; shade: number; emphasis: number; rank: number; mobileRank: number; mobileShade: number }[] = [];
   for (let py = d; py < height - d - step; py += step) {
     for (let px = d; px < width - d - step; px += step) {
       const x = px + Math.floor(random() * step);
@@ -97,28 +98,40 @@ export async function samplePortrait(src: string, signal: AbortSignal): Promise<
         Math.max(backdrop, face * 0.76);
       if (weight < PORTRAIT_SETTINGS.minSampleWeight) continue;
 
+      const sampleX = (x + random() * 0.9) / width;
+      const sampleY = (y + random() * 0.9) / height;
+      const shade = clamp((0.14 + (light / 255) ** 0.8 * 0.67 + contrast * 0.24 * (1 - faceShadow * 0.78) +
+        face * faceLight * 0.29 - faceShadow * 0.16) * fade);
+      const rank = -Math.log(1 - random()) / weight;
+      const facialMidtone = smoothstep(45, 105, light) * (1 - smoothstep(165, 190, light));
+      // Reweight accepted pixels only, keeping the same light-wall and corner rejection.
+      const mobileWeight = (0.68 + head * 0.52 + face * (1.3 + facialMidtone * 0.65 + contrast * 0.6)) *
+        (1 - smoothstep(0.59, 0.93, v) * 0.65);
       candidates.push({
-        x: (x + random() * 0.9) / width,
-        y: (y + random() * 0.9) / height,
-        shade: clamp((0.14 + (light / 255) ** 0.8 * 0.67 + contrast * 0.24 * (1 - faceShadow * 0.78) +
-          face * faceLight * 0.29 - faceShadow * 0.16) * fade),
+        x: sampleX,
+        y: sampleY,
+        shade,
         emphasis: Math.max(face, head * 0.58 + contrast * 0.17),
-        rank: -Math.log(1 - random()) / weight,
+        rank,
+        mobileRank: rank / mobileWeight,
+        mobileShade: shade + face * facialMidtone * Math.min(0.065, (1 - shade) * 0.2),
       });
     }
   }
 
-  // A seeded, weighted order keeps smaller layouts representative of the same portrait.
-  candidates.sort((a, b) => a.rank - b.rank);
-  const selected = candidates.slice(0, PORTRAIT_SETTINGS.density.desktop);
+  function pack(points: typeof candidates, mobile: boolean): ParticlePoints {
+    return {
+      x: Float32Array.from(points, point => point.x),
+      y: Float32Array.from(points, point => point.y),
+      shade: Float32Array.from(points, point => mobile ? point.mobileShade : point.shade),
+      emphasis: Float32Array.from(points, point => point.emphasis),
+    };
+  }
+
+  const selected = candidates.sort((a, b) => a.rank - b.rank).slice(0, PORTRAIT_SETTINGS.density.desktop);
   if (selected.length < 300) throw new Error('Not enough portrait detail to render');
-  return {
-    aspect: width / height,
-    x: Float32Array.from(selected, point => point.x),
-    y: Float32Array.from(selected, point => point.y),
-    shade: Float32Array.from(selected, point => point.shade),
-    emphasis: Float32Array.from(selected, point => point.emphasis),
-  };
+  const mobile = candidates.sort((a, b) => a.mobileRank - b.mobileRank).slice(0, PORTRAIT_SETTINGS.density.mobile);
+  return { aspect: width / height, ...pack(selected, false), mobile: pack(mobile, true) };
 }
 
 type PortraitFrame = { left: number; top: number; width: number; height: number };
@@ -148,8 +161,11 @@ export function createPortraitRenderer(
   const scatterX = arrays();
   const scatterY = arrays();
   const phase = arrays();
+  const baseDelay = new Float64Array(capacity);
+  const baseRadius = new Float64Array(capacity);
   const delay = arrays();
   const radius = arrays();
+  let points: ParticlePoints = source;
   let width = 0, height = 0, count = 0;
   let screen: ScreenSize = 'desktop';
   let dpr = 1;
@@ -165,8 +181,8 @@ export function createPortraitRenderer(
     scatterX[i] = Math.cos(angle) * (0.29 + random() * 0.89);
     scatterY[i] = i % 31 === 0 ? 0.55 + random() * 0.3 : Math.sin(angle) * 0.56 - 0.32;
     phase[i] = random() * Math.PI * 2;
-    delay[i] = (1 - source.emphasis[i]) * 0.46 + random() * 0.36;
-    radius[i] = (0.38 + random() * 0.62) * (0.84 + source.shade[i] * 0.32);
+    baseDelay[i] = random() * 0.36;
+    baseRadius[i] = 0.38 + random() * 0.62;
   }
 
   function resetPositions() {
@@ -190,16 +206,20 @@ export function createPortraitRenderer(
     if (canvas.width !== bufferWidth) canvas.width = bufferWidth;
     if (canvas.height !== bufferHeight) canvas.height = bufferHeight;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
-    count = Math.min(capacity, PORTRAIT_SETTINGS.density[screen]);
+    const mobile = screen === 'mobile';
+    points = mobile ? source.mobile : source;
+    count = Math.min(points.x.length, PORTRAIT_SETTINGS.density[screen]);
     canvas.dataset.particles = String(count);
-    const fitWidth = Math.min(frame.width, frame.height * source.aspect);
+    const fitWidth = Math.min(frame.width, frame.height * source.aspect) * (mobile ? 1.16 : 1);
     const fitHeight = fitWidth / source.aspect;
     const left = frame.left + (frame.width - fitWidth) / 2;
-    const top = frame.top + (frame.height - fitHeight) * 0.26;
+    const top = frame.top + (mobile ? Math.max(0, frame.height - fitHeight) : frame.height - fitHeight) * 0.26;
 
     for (let i = 0; i < count; i++) {
-      homeX[i] = left + source.x[i] * fitWidth;
-      homeY[i] = top + source.y[i] * fitHeight;
+      homeX[i] = left + points.x[i] * fitWidth;
+      homeY[i] = top + points.y[i] * fitHeight;
+      delay[i] = (1 - points.emphasis[i]) * 0.46 + baseDelay[i];
+      radius[i] = baseRadius[i] * (0.84 + points.shade[i] * 0.32);
     }
     resetPositions();
   }
@@ -279,11 +299,11 @@ export function createPortraitRenderer(
       const py = reduced ? targetY : y[i];
       if (px < -2 || px > width + 2 || py < -2 || py > height + 2) continue;
       const entrance = forming ? smoothstep(0, 0.5, age) : 1;
-      const diagonal = source.x[i] * 0.62 + source.y[i] * 0.58;
+      const diagonal = points.x[i] * 0.62 + points.y[i] * 0.58;
       const wave = Math.max(0, 1 - Math.abs(diagonal - shimmer) * 11);
       const breathe = motion * (Math.sin(clock * 1.37 + phase[i]) * 0.025 + wave * (mobile ? 0.07 : 0.13));
-      context.globalAlpha = clamp((source.shade[i] * 1.14 + breathe) * fade * entrance);
-      const accent = i % 167 === 0 && source.shade[i] > 0.26;
+      context.globalAlpha = clamp((points.shade[i] * 1.14 + breathe) * fade * entrance);
+      const accent = i % 167 === 0 && points.shade[i] > 0.26;
       if (accent !== accentInk) {
         context.fillStyle = accent ? '#ff794c' : '#dce5f0';
         accentInk = accent;
